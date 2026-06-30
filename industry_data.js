@@ -1,0 +1,2 @@
+// Industry data - 2026-06-22 12:18
+var INDUSTRY_DATA = {L1: INDUSTRY_L1, L2: INDUSTRY_L2};

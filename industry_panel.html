@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>行业日频面板 - 924基准涨跌</title>
+<script src="echarts.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0d1117; color: #e6edf3; overflow: hidden; font-family: -apple-system, "Microsoft YaHei", sans-serif; }
+.container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+h1 { text-align: center; font-size: 22px; color: #58a6ff; margin-bottom: 8px; }
+.subtitle { text-align: center; font-size: 13px; color: #8b949e; margin-bottom: 20px; }
+.tab-bar { display: flex; gap: 12px; margin-bottom: 16px; }
+.tab-btn { padding: 8px 20px; border: 1px solid #30363d; border-radius: 6px; background: transparent; color: #8b949e; cursor: pointer; font-size: 14px; transition: all 0.2s; }
+.tab-btn.active { background: #1f6feb; border-color: #1f6feb; color: #fff; }
+.tab-btn:hover { border-color: #58a6ff; color: #58a6ff; }
+.chart-panel { display: none; }
+.chart-panel.active { display: block; }
+.chart-row { display: flex; gap: 12px; margin-bottom: 12px; }
+.chart-cell { flex: 1; background: #161b22; border-radius: 8px; border: 1px solid #30363d; height: 720px; overflow: hidden; }
+.chart-box-normal { width: 100%; height: 600px; background: #161b22; border-radius: 8px; border: 1px solid #30363d; }
+.info { margin-top: 12px; font-size: 12px; color: #8b949e; text-align: center; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>行业日频面板 · 924基准涨跌</h1>
+  <p class="subtitle">以 2024-09-24 收盘为基准 (0%)，展示各行业累计涨跌幅</p>
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('l1')">申万一级 点阵图</button>
+    <button class="tab-btn" onclick="switchTab('l2')">申万二级 科技曲线</button>
+  </div>
+  <div id="panel-l1" class="chart-panel active">
+    <div class="chart-row">
+      <div id="chart-l1-924" class="chart-cell"></div>
+      <div id="chart-l1-month" class="chart-cell"></div>
+      <div id="chart-l1-week" class="chart-cell"></div>
+    </div>
+  </div>
+  <div id="panel-l2" class="chart-panel">
+    <div id="chart-l2" class="chart-box-normal"></div>
+  </div>
+  <p class="info">数据来源: Tushare daily + stock_basic 聚合计算</p>
+</div>
+<script src="industry_panel_data.js"></script>
+<script>
+function getDotColor(v) {
+  if (v >= 50) return '#2ecc71';
+  if (v >= 20) return '#27ae60';
+  if (v >= 10) return '#7f8c8d';
+  if (v >= 0) return '#95a5a6';
+  if (v >= -10) return '#e67e22';
+  if (v >= -20) return '#e74c3c';
+  return '#c0392b';
+}
+function getBarColor(v) {
+  if (v >= 20) return 'rgba(46,204,113,0.4)';
+  if (v >= 0) return 'rgba(127,140,141,0.3)';
+  if (v >= -20) return 'rgba(231,76,60,0.4)';
+  return 'rgba(192,57,43,0.5)';
+}
+function makeDotOption(names, values, title, subtitle, markLabel) {
+  return {
+    backgroundColor: 'transparent',
+    title: {
+      text: title, subtext: subtitle, left: 'center',
+      textStyle: { color: '#58a6ff', fontSize: 14 },
+      subtextStyle: { color: '#8b949e', fontSize: 11 }
+    },
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: 'rgba(22,27,34,0.95)',
+      borderColor: '#30363d',
+      textStyle: { color: '#e6edf3', fontSize: 12 },
+      formatter: function(params) {
+        var p = params[0]; var v = p.value;
+        var arrow = v >= 0 ? '▲' : '▼';
+        var color = v >= 0 ? '#2ecc71' : '#e74c3c';
+        return '<b>' + p.name + '</b><br/>涨幅: <span style="color:'+color+'">' + arrow + ' ' + v.toFixed(2) + '%</span>';
+      }
+    },
+    grid: { left: 70, right: 45, top: 45, bottom: 25 },
+    xAxis: {
+      type: 'value',
+      axisLabel: { color: '#8b949e', fontSize: 10, formatter: '{value}%' },
+      axisLine: { lineStyle: { color: '#30363d' } },
+      splitLine: { lineStyle: { color: '#21262d', type: 'dashed' } }
+    },
+    yAxis: {
+      type: 'category', data: names,
+      axisLabel: { color: '#e6edf3', fontSize: 10 },
+      axisLine: { lineStyle: { color: '#30363d' } },
+      splitLine: { show: false }
+    },
+    series: [{
+      type: 'scatter',
+      data: values.map(function(v, i) { return [v, names[i]]; }),
+      symbolSize: 10,
+      itemStyle: { color: function(params) { return getDotColor(params.value[0]); }, borderColor: '#0d1117', borderWidth: 1 },
+      label: { show: true, position: 'right', formatter: function(params) { var v = params.value[0]; return (v >= 0 ? '+' : '') + v.toFixed(1) + '%'; }, color: '#8b949e', fontSize: 9 },
+      markLine: { silent: true, symbol: 'none', data: [{ xAxis: 0, lineStyle: { color: '#8e44ad', type: 'dashed', width: 1.5 }, label: { show: true, formatter: markLabel || '基准', color: '#8e44ad', fontSize: 10, position: 'start' } }] }
+    },{
+      type: 'bar',
+      data: values.map(function(v, i) { return [v, names[i]]; }),
+      barWidth: 1.5,
+      itemStyle: { color: function(params) { return getBarColor(params.value[0]); } },
+      z: -1
+    }]
+  };
+}
+
+// ========== L1 三个点阵图 ==========
+var l1Names = INDUSTRY_L1_DOTS.map(function(d) { return d.name; });
+var l1_924 = INDUSTRY_L1_DOTS.map(function(d) { return d.cum924; });
+var l1_month = INDUSTRY_L1_DOTS.map(function(d) { return d.cum_month; });
+var l1_week = INDUSTRY_L1_DOTS.map(function(d) { return d.cum_week; });
+
+var sort924 = l1Names.map(function(n,i){ return {name:n, val:l1_924[i]}; }).sort(function(a,b){return a.val-b.val;});
+var sortMonth = l1Names.map(function(n,i){ return {name:n, val:l1_month[i]}; }).sort(function(a,b){return a.val-b.val;});
+var sortWeek = l1Names.map(function(n,i){ return {name:n, val:l1_week[i]}; }).sort(function(a,b){return a.val-b.val;});
+
+var chartL1_924 = echarts.init(document.getElementById('chart-l1-924'));
+var chartL1_month = echarts.init(document.getElementById('chart-l1-month'));
+var chartL1_week = echarts.init(document.getElementById('chart-l1-week'));
+
+chartL1_924.setOption(makeDotOption(
+  sort924.map(function(d){return d.name;}), sort924.map(function(d){return d.val;}),
+  '924至今累计涨跌', '基准: 2024-09-24 | 最新: ' + INDUSTRY_L1_LATEST_DATE, '924基准'
+));
+chartL1_month.setOption(makeDotOption(
+  sortMonth.map(function(d){return d.name;}), sortMonth.map(function(d){return d.val;}),
+  '近一月涨跌', INDUSTRY_L1_MONTH_START + ' ~ ' + INDUSTRY_L1_LATEST_DATE, '0%'
+));
+chartL1_week.setOption(makeDotOption(
+  sortWeek.map(function(d){return d.name;}), sortWeek.map(function(d){return d.val;}),
+  '近一周涨跌', INDUSTRY_L1_WEEK_START + ' ~ ' + INDUSTRY_L1_LATEST_DATE, '0%'
+));
+
+// ========== L2 科技曲线 ==========
+var chartL2 = echarts.init(document.getElementById('chart-l2'));
+var colors = ['#5470c6','#91cc75','#fac858','#ee6666','#73c0de','#3ba272','#fc8452','#9a60b4','#ea7ccc','#48b8d0','#7b9ce1','#bd6d6c','#75d874'];
+
+var optL2 = {
+  backgroundColor: 'transparent',
+  title: {
+    text: '申万二级 · 科技行业924至今累计涨跌曲线', subtext: '基准日: 2024-09-24',
+    left: 'center', textStyle: { color: '#58a6ff', fontSize: 16 }, subtextStyle: { color: '#8b949e', fontSize: 12 }
+  },
+  tooltip: {
+    trigger: 'axis', backgroundColor: 'rgba(22,27,34,0.95)', borderColor: '#30363d', textStyle: { color: '#e6edf3', fontSize: 12 },
+    formatter: function(params) {
+      var html = '<b>' + params[0].axisValue + '</b><br/>';
+      var sorted = params.slice().sort(function(a,b){ return (b.value||0)-(a.value||0); });
+      sorted.forEach(function(p) {
+        if (p.value !== null && p.value !== undefined) {
+          var v = p.value.toFixed(2); var arrow = p.value >= 0 ? '▲' : '▼';
+          html += '<span style="color:'+p.color+'">●</span> ' + p.seriesName + ': ' + arrow + v + '%<br/>';
+        }
+      });
+      return html;
+    }
+  },
+  legend: { type: 'scroll', bottom: 0, textStyle: { color: '#8b949e', fontSize: 11 }, pageTextStyle: { color: '#58a6ff' }, pageIconColor: '#58a6ff', pageIconInactiveColor: '#30363d' },
+  grid: { left: 60, right: 30, top: 60, bottom: 60 },
+  xAxis: { type: 'category', data: INDUSTRY_PANEL_DATES, axisLabel: { color: '#8b949e', fontSize: 10, rotate: 30 }, axisLine: { lineStyle: { color: '#30363d' } }, splitLine: { show: false } },
+  yAxis: { type: 'value', axisLabel: { color: '#8b949e', fontSize: 11, formatter: '{value}%' }, axisLine: { lineStyle: { color: '#30363d' } }, splitLine: { lineStyle: { color: '#21262d' } } },
+  series: INDUSTRY_L2_TECH_SERIES.map(function(s, i) {
+    var cfg = { name: s.name, type: 'line', data: s.data, symbol: 'none', lineStyle: { width: 1.8, color: colors[i % colors.length] }, itemStyle: { color: colors[i % colors.length] }, emphasis: { lineStyle: { width: 3 } } };
+    if (i === 0) { cfg.markLine = { silent: true, symbol: 'none', data: [{ xAxis: 0, lineStyle: { color: '#8e44ad', type: 'dashed', width: 2 }, label: { show: true, formatter: '924政策', color: '#8e44ad', fontSize: 11 } }] }; }
+    return cfg;
+  })
+};
+chartL2.setOption(optL2);
+
+window.addEventListener('resize', function() {
+  chartL1_924.resize(); chartL1_month.resize(); chartL1_week.resize(); chartL2.resize();
+});
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+  document.querySelectorAll('.chart-panel').forEach(function(p) { p.classList.remove('active'); });
+  if (tab === 'l1') {
+    document.querySelectorAll('.tab-btn')[0].classList.add('active');
+    document.getElementById('panel-l1').classList.add('active');
+    chartL1_924.resize(); chartL1_month.resize(); chartL1_week.resize();
+  } else {
+    document.querySelectorAll('.tab-btn')[1].classList.add('active');
+    document.getElementById('panel-l2').classList.add('active');
+    chartL2.resize();
+  }
+}
+</script>
+</body>
+</html>
